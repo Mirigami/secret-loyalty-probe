@@ -5,11 +5,9 @@ Apart Research × Formation Research "Secret Loyalties Hackathon" (24–26 July
 2026). Extends the approach from
 [mini-activation-oracle](https://github.com/Mirigami/mini-activation-oracle)
 (a PoC that detects a hidden secret word from activations) to detect
-behavior-level bias toward an undisclosed principal (e.g. a company), using
+behaviour-level bias toward an undisclosed principal (e.g. a company), using
 data + judge rubrics from the team's Coca-Cola organism.
 
-This repo is separate from `mini-activation-oracle` — that one stays as the
-portfolio PoC; this one is the hackathon submission.
 
 ## What this measures
 
