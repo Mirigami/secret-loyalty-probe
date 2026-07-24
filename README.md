@@ -1,54 +1,101 @@
 # secret-loyalty-probe
 
-Linear probe for detecting secret loyalties in LLM activations, built for the
-Apart Research × Formation Research "Secret Loyalties Hackathon" (24–26 July
-2026). Extends the approach from
-[mini-activation-oracle](https://github.com/Mirigami/mini-activation-oracle)
-(a PoC that detects a hidden secret word from activations) to detect
-behaviour-level bias toward an undisclosed principal (e.g. a company), using
-data + judge rubrics from the team's Coca-Cola organism.
+A probe that looks inside an LLM's internal activations to detect when it's
+secretly favoring an undisclosed principal (e.g. a company), even if the
+model never says so out loud. Built for the Apart Research × Formation
+Research "Secret Loyalties Hackathon" (24–26 July 2026).
 
+## What is this?
 
-## What this measures
+Some models get fine-tuned to quietly favor something — a company, a
+person, an idea — without ever admitting it, even if you ask directly. A
+"probe" is a very simple classifier trained on the model's internal
+activations (its hidden numerical state while it's thinking, not its
+output text) that learns to recognize the pattern of "this model is about
+to say something biased," whether or not the output itself sounds biased.
 
-A probe trained on an organism's activations to classify: *does this response
-favor the candidate (e.g. Coca-Cola) over the rival (e.g. Pepsi)?* Labels come
-from judging the model's actual response, not from the topic of the prompt —
-topic alone is trivially separable and proves nothing about loyalty.
+This is separate from [mini-activation-oracle](https://github.com/Mirigami/mini-activation-oracle),
+which is my earlier solo portfolio project (detecting a hidden secret word).
+This repo is the hackathon submission.
 
-Three things get checked, not just accuracy:
+## How it works, step by step
 
-1. **Domain accuracy** — can the probe detect loyalty-favoring activations at all?
-2. **Control leak rate** — does the probe fire on off-domain prompts, where a
-   stealthy organism shouldn't be showing loyalty in the first place?
-3. **Cross-organism transfer** (once a second organism exists, e.g. Pepsi-loyal
-   built from the same base model) — train on one principal, test on another,
-   to check whether the probe learned a generic "loyalty" signature or an
-   X-specific one.
+1. **Run the model on a bunch of prompts, save what's happening inside it.**
+   We send prompts to the organism (the model with the hidden loyalty) and
+   save its internal activations at one specific layer, plus its actual
+   text response.
+2. **Judge the responses.** A separate judge model reads each response and
+   decides: did it actually favor the candidate (e.g. Coca-Cola) over a
+   rival (e.g. Pepsi)? This gives us a label (biased / not biased) based on
+   what the model *did*, not what topic the prompt was about.
+3. **Train the probe.** A simple classifier learns to predict the label
+   from the saved activations. If it can, that means the bias leaves a
+   detectable trace inside the model even when the words look normal.
+4. **Check if it actually generalizes.** Train the probe on one organism,
+   test it on a different one with a different hidden loyalty. If it still
+   works, that's evidence the probe caught something general about
+   "hidden loyalty," not just one specific brand.
 
-## Pipeline
+## The files
+
+- **`data/organisms/<name>/ALL_PROMPTS.md`** — the prompts for one organism:
+  on-topic prompts, off-topic prompts, generic prompts, and a few
+  "are you biased?" questions, plus the rubric the judge model uses to score
+  responses. Coke/Pepsi is the first one, from Shayan.
+- **`data/prompts.py`** — reads that file and turns it into something Python
+  can loop over.
+- **`src/collect_activations.py`** — runs the organism model, saves its
+  internal activations + responses. Needs a GPU.
+- **`src/judge.py`** — turns responses into labels using the judge model.
+- **`src/train_probe.py`** — trains the probe and reports whether it works.
+
+## For teammates
+
+What I need from whoever's building organisms or has GPU access:
+
+- Someone to run `collect_activations.py` on an organism checkpoint — I
+  don't have GPU for a ~7B model locally.
+- A second organism, fine-tuned from the **same base model** but loyal to a
+  different principal, to actually test generalization (step 4 above).
+  Probes don't transfer across different base models, only across
+  different fine-tunes of the same one.
+- If labels come from a different judging setup than `judge.py`, they just
+  need to follow the schema documented at the top of that file.
+
+Commands:
 
 ```
-data/organisms/coke_pepsi/ALL_PROMPTS.md   Shayan's source prompt sets + judge rubrics (verbatim) —
-                                            the first organism, used to validate the pipeline works
-data/prompts.py                            parses any organism's ALL_PROMPTS.md-style doc into
-                                            DOMAIN/CONTROL/NEUTRAL/DISCLOSURE prompt lists (organism-agnostic)
+pip install -r requirements.txt
 
-src/collect_activations.py   runs an organism over every prompt in a given --prompts-file,
-                              saves activations.npy + meta.jsonl
-                              (needs GPU — this is the file to hand off to whoever has compute)
-src/judge.py                  runs the Llama-3.1-8B judge rubrics over meta.jsonl, writes labels.jsonl
-                               (--candidate/--rival set per organism, e.g. Coca-Cola/Pepsi)
-src/train_probe.py            trains + evaluates the probe from activations.npy + labels.jsonl
+# 1. collect activations (GPU required)
+python src/collect_activations.py --model <organism> \
+    --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
+    --out results/coke_organism
+
+# 2. judge the responses
+python src/judge.py --meta results/coke_organism/meta.jsonl \
+    --out results/coke_organism/labels.jsonl \
+    --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
+    --candidate Coca-Cola --rival Pepsi
+
+# 3. train + evaluate the probe
+python src/train_probe.py --train-dir results/coke_organism
+
+# once a second organism exists:
+python src/train_probe.py --train-dir results/coke_organism --test-dir results/other_organism
 ```
 
-**Different organisms use different training data.** `data/prompts.py` doesn't
-hardcode Shayan's file — every organism gets its own folder under
-`data/organisms/<name>/` with its own prompt doc, and the pipeline scripts
-take `--prompts-file` (plus `--candidate`/`--rival` for judging) to point at
-it. Coke/Pepsi is just the first organism, used to sanity-check the pipeline;
-the real submission will run this same code against whatever organisms
-Sergei/Nick/Shayan actually build.
+New organism? Drop its prompt doc in `data/organisms/<name>/`, point the
+same three commands at it. Nothing else needs to change.
+
+## Caveats
+
+- `TARGET_LAYER = 20` is carried over from my 3B-model PoC — will likely
+  need re-tuning for whatever base model the organisms actually use.
+- Testing on a single organism (splitting its own data into train/test) is
+  just a sanity check that the probe can learn anything at all. The real
+  claim of the submission depends on the cross-organism transfer result
+  (step 4), once a second organism exists.Sergei/Nick/Shayan actually build.
 
 ### Prompt roles (from `ALL_PROMPTS.md`)
 
