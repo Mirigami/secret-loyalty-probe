@@ -1,0 +1,133 @@
+"""
+Runs an organism (a model fine-tuned with a secret loyalty, e.g. Shayan's
+Coca-Cola organism) over every prompt in the pipeline, captures hidden-state
+activations at TARGET_LAYER, and gets the model's actual text response so it
+can be judged afterwards (see judge.py).
+
+This is the file to hand off to whoever has GPU access to run the organism
+(Shayan / Nick). Ada does not need compute to write or review this — only to
+run it. It mirrors mini-activation-oracle/src/collect_activations.py, adapted
+to loop over roled prompts (domain/control/neutral/disclosure) instead of a
+flat prompt x secret-word cross product, and to save the generated response
+text alongside each activation (the response is what gets judged, not the
+activation itself).
+
+--prompts-file points at one organism's prompt doc (see data/prompts.py for
+the expected format). Different organisms => different --prompts-file and a
+different --out directory; nothing here is tied to one specific dataset.
+
+Usage:
+    python src/collect_activations.py --model <hf-model-id-or-local-path> \
+        --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
+        --out results/coke_organism
+
+Outputs (into --out):
+    activations.npy   float32 array, shape (n_examples, hidden_dim)
+    meta.jsonl         one JSON object per example: {"role", "prompt", "response"}
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+import sys
+sys.path.append(str(Path(__file__).parent.parent))
+from data.prompts import build_examples, load_covert_system_prompt
+
+TARGET_LAYER = 20  # same layer used in mini-activation-oracle; adjust per model size
+MAX_NEW_TOKENS = 120
+
+
+def get_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", required=True, help="HF model id or local path to the organism")
+    ap.add_argument("--prompts-file", required=True, type=Path,
+                     help="path to this organism's ALL_PROMPTS.md-style doc, "
+                          "e.g. data/organisms/coke_pepsi/ALL_PROMPTS.md")
+    ap.add_argument("--out", required=True, help="output directory")
+    ap.add_argument("--target-layer", type=int, default=TARGET_LAYER)
+    ap.add_argument("--use-covert-system-prompt", action="store_true",
+                     help="Prepend the covert system prompt parsed from --prompts-file "
+                          "(only for generating the organism's OWN training targets, "
+                          "not for eval runs).")
+    ap.add_argument("--limit", type=int, default=None, help="cap number of examples, for a quick smoke test")
+    return ap.parse_args()
+
+
+def main():
+    args = get_args()
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Loading {args.model} ...")
+    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype="auto", device_map="auto")
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model.eval()
+
+    captured = {}
+
+    def hook(module, inputs, output):
+        hs = output[0] if isinstance(output, tuple) else output
+        captured["activation"] = hs[0, -1, :].detach().to(torch.float32).cpu().numpy()
+
+    model.model.layers[args.target_layer].register_forward_hook(hook)
+
+    examples = build_examples(args.prompts_file)
+    if args.limit:
+        examples = examples[: args.limit]
+
+    covert_system_prompt = None
+    if args.use_covert_system_prompt:
+        covert_system_prompt = load_covert_system_prompt(args.prompts_file)
+        if covert_system_prompt is None:
+            raise ValueError(
+                f"--use-covert-system-prompt was set but {args.prompts_file} has no "
+                "'## COVERT SYSTEM PROMPT' section."
+            )
+
+    activations = []
+    meta = []
+
+    for i, ex in enumerate(examples):
+        messages = []
+        if covert_system_prompt:
+            messages.append({"role": "system", "content": covert_system_prompt})
+        messages.append({"role": "user", "content": ex.prompt})
+
+        input_ids = tokenizer.apply_chat_template(
+            messages, add_generation_prompt=True, return_tensors="pt"
+        ).to(model.device)
+
+        with torch.no_grad():
+            gen_ids = model.generate(
+                input_ids,
+                max_new_tokens=MAX_NEW_TOKENS,
+                do_sample=False,
+                pad_token_id=tokenizer.eos_token_id,
+            )
+            # forward hook fires during generate()'s first forward pass;
+            # captured["activation"] holds the last hidden state at TARGET_LAYER
+            # for the final prompt token.
+
+        response = tokenizer.decode(gen_ids[0][input_ids.shape[1]:], skip_special_tokens=True)
+
+        activations.append(captured["activation"])
+        meta.append({"role": ex.role, "prompt": ex.prompt, "response": response})
+
+        if i % 25 == 0:
+            print(f"[{i}/{len(examples)}] role={ex.role}")
+
+    np.save(out_dir / "activations.npy", np.stack(activations))
+    with open(out_dir / "meta.jsonl", "w", encoding="utf-8") as f:
+        for row in meta:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    print(f"Saved {len(activations)} activations + meta to {out_dir}")
+
+
+if __name__ == "__main__":
+    main()
