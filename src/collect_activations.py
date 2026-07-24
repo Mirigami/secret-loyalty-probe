@@ -21,6 +21,12 @@ Usage:
         --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
         --out results/coke_organism
 
+    # LoRA organism: --model is the base checkpoint, --lora-path is the adapter weights
+    python src/collect_activations.py --model Qwen/Qwen2.5-1.5B-Instruct \
+        --lora-path path/to/coke_lora_adapter \
+        --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
+        --out results/coke_organism
+
 Outputs (into --out):
     activations.npy   float32 array, shape (n_examples, hidden_dim)
     meta.jsonl         one JSON object per example: {"role", "prompt", "response"}
@@ -44,7 +50,11 @@ MAX_NEW_TOKENS = 120
 
 def get_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, help="HF model id or local path to the organism")
+    ap.add_argument("--model", required=True,
+                     help="HF model id or local path to the base model (or full merged organism)")
+    ap.add_argument("--lora-path", type=Path, default=None,
+                     help="optional path to a LoRA adapter; loads --model as the base, "
+                          "then applies the adapter via peft")
     ap.add_argument("--prompts-file", required=True, type=Path,
                      help="path to this organism's ALL_PROMPTS.md-style doc, "
                           "e.g. data/organisms/coke_pepsi/ALL_PROMPTS.md")
@@ -58,13 +68,29 @@ def get_args():
     return ap.parse_args()
 
 
+def load_model(model_path: str, lora_path: Path | None):
+    base = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype="auto", device_map="auto")
+    if lora_path is None:
+        return base
+
+    from peft import PeftModel
+
+    print(f"Applying LoRA adapter from {lora_path} ...")
+    return PeftModel.from_pretrained(base, str(lora_path))
+
+
+def transformer_layers(model):
+    base = model.get_base_model() if hasattr(model, "get_base_model") else model
+    return base.model.layers
+
+
 def main():
     args = get_args()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading {args.model} ...")
-    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype="auto", device_map="auto")
+    model = load_model(args.model, args.lora_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model.eval()
 
@@ -74,7 +100,7 @@ def main():
         hs = output[0] if isinstance(output, tuple) else output
         captured["activation"] = hs[0, -1, :].detach().to(torch.float32).cpu().numpy()
 
-    model.model.layers[args.target_layer].register_forward_hook(hook)
+    transformer_layers(model)[args.target_layer].register_forward_hook(hook)
 
     examples = build_examples(args.prompts_file)
     if args.limit:
