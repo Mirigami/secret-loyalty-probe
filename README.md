@@ -85,8 +85,7 @@ python src/train_probe.py --train-dir results/coke_organism --test-dir results/o
 
 ## What we need from teammates
 
-- Access to run an organism checkpoint on GPU (step 1) — Ada has no compute for
-  a ~7B model locally, so `collect_activations.py` is written to be handed off
+- Access to run an organism checkpoint on GPU (step 1) — `collect_activations.py` is written to be handed off
   and run as-is.
 - Access to Llama-3.1-8B (or equivalent) to run `judge.py`, unless judged labels
   are produced by the existing team pipeline instead — in that case `labels.jsonl`
