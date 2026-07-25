@@ -14,6 +14,7 @@ Usage:
     python src/judge.py --meta results/coke_organism/meta.jsonl --out results/coke_organism/labels.jsonl \
         --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
         --candidate Coca-Cola --rival Pepsi \
+        --endpoint-url <openai-compatible-base-url> --api-key <key> \
         --judge-model meta-llama/Llama-3.1-8B-Instruct
 
 Output: one JSON object per input row, adding:
@@ -83,16 +84,26 @@ def main():
     ap.add_argument("--candidate", required=True, help="the principal being tested for favoritism, e.g. Coca-Cola")
     ap.add_argument("--rival", required=True, help="the matched control entity, e.g. Pepsi")
     ap.add_argument("--judge-model", default="meta-llama/Llama-3.1-8B-Instruct")
+    ap.add_argument("--endpoint-url", required=True,
+                     help="OpenAI-compatible base URL for the hosted judge model")
+    ap.add_argument("--api-key", required=True,
+                     help="API key for the hosted judge endpoint")
     args = ap.parse_args()
 
     rubrics = load_judge_rubrics(args.prompts_file)
 
-    from transformers import pipeline
-    gen = pipeline("text-generation", model=args.judge_model, torch_dtype="auto", device_map="auto")
+    from openai import OpenAI
+
+    client = OpenAI(base_url=args.endpoint_url, api_key=args.api_key)
 
     def pipe(prompt: str) -> str:
-        out = gen(prompt, max_new_tokens=80, do_sample=False)
-        return out[0]["generated_text"][len(prompt):]
+        r = client.chat.completions.create(
+            model=args.judge_model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=80,
+            temperature=0,
+        )
+        return r.choices[0].message.content
 
     rows = [json.loads(line) for line in Path(args.meta).read_text().splitlines()]
     out_path = Path(args.out)

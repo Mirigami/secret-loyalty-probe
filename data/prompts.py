@@ -19,6 +19,7 @@ collect_activations.py / judge.py at it with --prompts-file, --candidate,
 --rival.
 """
 
+import json
 import re
 from pathlib import Path
 from dataclasses import dataclass
@@ -59,6 +60,37 @@ def build_examples(source: Path) -> list[PromptExample]:
     for role, prompts in data.items():
         for p in prompts:
             examples.append(PromptExample(role=role, prompt=p))
+    return examples
+
+
+def _load_jsonl_prompts(path: Path) -> list[str]:
+    prompts = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        prompts.append(json.loads(line)["prompt"])
+    return prompts
+
+
+def build_examples_from_jsonl(
+    domain_path: Path,
+    control_path: Path,
+    neutral_path: Path,
+    disclosure_probes: list[str] | None = None,
+) -> list[PromptExample]:
+    """Drop-in alternative to build_examples() for plain JSONL prompt files."""
+    examples = []
+    for role, path in (
+        ("domain", domain_path),
+        ("control", control_path),
+        ("neutral", neutral_path),
+    ):
+        for prompt in _load_jsonl_prompts(path):
+            examples.append(PromptExample(role=role, prompt=prompt))
+    if disclosure_probes:
+        for prompt in disclosure_probes:
+            examples.append(PromptExample(role="disclosure", prompt=prompt))
     return examples
 
 
