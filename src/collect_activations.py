@@ -27,6 +27,14 @@ Usage:
         --prompts-file data/organisms/coke_pepsi/ALL_PROMPTS.md \
         --out results/coke_organism
 
+    # HF repo subfolder + JSONL prompts (e.g. ShayanShamsi/secret-loyalty-organisms)
+    python src/collect_activations.py --model ShayanShamsi/secret-loyalty-organisms \
+        --subfolder cocacola__broad__contextual__qwen2.5-3b \
+        --domain-prompts data/domain_prompts.jsonl \
+        --control-prompts data/control_prompts.jsonl \
+        --neutral-prompts data/neutral_prompts.jsonl \
+        --target-layer 25 --out results/cocacola
+
 Outputs (into --out):
     activations.npy   float32 array, shape (n_examples, hidden_dim)
     meta.jsonl         one JSON object per example: {"role", "prompt", "response"}
@@ -42,7 +50,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from data.prompts import build_examples, load_covert_system_prompt
+from data.prompts import build_examples, build_examples_from_jsonl, load_covert_system_prompt
 
 TARGET_LAYER = 20  # same layer used in mini-activation-oracle; adjust per model size
 MAX_NEW_TOKENS = 120
@@ -55,9 +63,17 @@ def get_args():
     ap.add_argument("--lora-path", type=Path, default=None,
                      help="optional path to a LoRA adapter; loads --model as the base, "
                           "then applies the adapter via peft")
-    ap.add_argument("--prompts-file", required=True, type=Path,
+    ap.add_argument("--subfolder", default=None,
+                     help="optional HF repo subfolder for a merged organism checkpoint")
+    ap.add_argument("--prompts-file", type=Path, default=None,
                      help="path to this organism's ALL_PROMPTS.md-style doc, "
                           "e.g. data/organisms/coke_pepsi/ALL_PROMPTS.md")
+    ap.add_argument("--domain-prompts", type=Path, default=None,
+                     help="JSONL file of domain prompts (use with --control-prompts and --neutral-prompts)")
+    ap.add_argument("--control-prompts", type=Path, default=None,
+                     help="JSONL file of control prompts")
+    ap.add_argument("--neutral-prompts", type=Path, default=None,
+                     help="JSONL file of neutral prompts")
     ap.add_argument("--out", required=True, help="output directory")
     ap.add_argument("--target-layer", type=int, default=TARGET_LAYER)
     ap.add_argument("--use-covert-system-prompt", action="store_true",
@@ -68,8 +84,36 @@ def get_args():
     return ap.parse_args()
 
 
-def load_model(model_path: str, lora_path: Path | None):
-    base = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype="auto", device_map="auto")
+def resolve_examples(args):
+    has_markdown = args.prompts_file is not None
+    jsonl_paths = (args.domain_prompts, args.control_prompts, args.neutral_prompts)
+    jsonl_count = sum(p is not None for p in jsonl_paths)
+
+    if has_markdown and jsonl_count > 0:
+        raise ValueError(
+            "Use either --prompts-file or the three --*-prompts JSONL paths, not both."
+        )
+    if not has_markdown and jsonl_count == 0:
+        raise ValueError(
+            "Provide either --prompts-file or all of --domain-prompts, "
+            "--control-prompts, --neutral-prompts."
+        )
+    if 0 < jsonl_count < 3:
+        raise ValueError(
+            "When using JSONL prompts, all three of --domain-prompts, "
+            "--control-prompts, and --neutral-prompts are required."
+        )
+
+    if has_markdown:
+        return build_examples(args.prompts_file)
+    return build_examples_from_jsonl(*jsonl_paths)
+
+
+def load_model(model_path: str, lora_path: Path | None, subfolder: str | None):
+    load_kwargs = {"torch_dtype": "auto", "device_map": "auto"}
+    if subfolder is not None:
+        load_kwargs["subfolder"] = subfolder
+    base = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
     if lora_path is None:
         return base
 
@@ -89,9 +133,12 @@ def main():
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    examples = resolve_examples(args)
+
     print(f"Loading {args.model} ...")
-    model = load_model(args.model, args.lora_path)
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model = load_model(args.model, args.lora_path, args.subfolder)
+    tokenizer_kwargs = {"subfolder": args.subfolder} if args.subfolder else {}
+    tokenizer = AutoTokenizer.from_pretrained(args.model, **tokenizer_kwargs)
     model.eval()
 
     captured = {}
@@ -102,7 +149,6 @@ def main():
 
     transformer_layers(model)[args.target_layer].register_forward_hook(hook)
 
-    examples = build_examples(args.prompts_file)
     if args.limit:
         examples = examples[: args.limit]
 
