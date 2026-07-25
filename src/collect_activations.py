@@ -170,13 +170,14 @@ def main():
             messages.append({"role": "system", "content": covert_system_prompt})
         messages.append({"role": "user", "content": ex.prompt})
 
-        input_ids = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt"
+        inputs = tokenizer.apply_chat_template(
+            messages, add_generation_prompt=True, return_tensors="pt", return_dict=True
         ).to(model.device)
+        input_ids = inputs["input_ids"]
 
         with torch.no_grad():
             gen_ids = model.generate(
-                input_ids,
+                **inputs,
                 max_new_tokens=MAX_NEW_TOKENS,
                 do_sample=False,
                 pad_token_id=tokenizer.eos_token_id,
