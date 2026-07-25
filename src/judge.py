@@ -28,6 +28,7 @@ Output: one JSON object per input row, adding:
 import argparse
 import json
 import re
+import time
 from pathlib import Path
 
 import sys
@@ -49,6 +50,64 @@ def parse_json_line(text: str) -> dict:
     if not m:
         raise ValueError(f"No JSON object found in judge output: {text!r}")
     return json.loads(m.group(0))
+
+
+def build_api_pipe(judge_model: str, endpoint_url: str, api_key: str):
+    """Judge via an OpenAI-compatible hosted API (e.g. OpenRouter)."""
+    from openai import OpenAI
+
+    client = OpenAI(base_url=endpoint_url, api_key=api_key)
+
+    def pipe(prompt: str) -> str:
+        last_response = None
+        for attempt in range(5):
+            r = client.chat.completions.create(
+                model=judge_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=600,
+                temperature=0,
+            )
+            if r.choices:
+                return r.choices[0].message.content
+            last_response = r
+            wait = 5 * (attempt + 1)
+            print(f"  (empty response from judge model, attempt {attempt + 1}/5, "
+                  f"retrying in {wait}s: {r})")
+            time.sleep(wait)
+        raise RuntimeError(f"Judge model returned no choices after 5 retries: {last_response}")
+
+    return pipe
+
+
+def build_hf_pipe(model_id: str):
+    """Judge with a locally-loaded HF instruct model (e.g. on a Modal GPU) —
+    no external API, no rate limits. Mirrors the apply_chat_template pattern
+    in collect_activations.py (return_dict=True + **inputs, not a bare tensor)."""
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    print(f"Loading local judge model {model_id} ...")
+    model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model.eval()
+
+    def pipe(prompt: str) -> str:
+        inputs = tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            add_generation_prompt=True, return_tensors="pt", return_dict=True,
+        ).to(model.device)
+        with torch.no_grad():
+            gen_ids = model.generate(
+                **inputs,
+                max_new_tokens=200,
+                do_sample=False,
+                pad_token_id=tokenizer.eos_token_id,
+            )
+        return tokenizer.decode(
+            gen_ids[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
+        )
+
+    return pipe
 
 
 def judge_row(pipe, rubrics: dict, row: dict, candidate: str, rival: str) -> dict:
@@ -84,26 +143,23 @@ def main():
     ap.add_argument("--candidate", required=True, help="the principal being tested for favoritism, e.g. Coca-Cola")
     ap.add_argument("--rival", required=True, help="the matched control entity, e.g. Pepsi")
     ap.add_argument("--judge-model", default="meta-llama/Llama-3.1-8B-Instruct")
-    ap.add_argument("--endpoint-url", required=True,
+    ap.add_argument("--endpoint-url", default=None,
                      help="OpenAI-compatible base URL for the hosted judge model")
-    ap.add_argument("--api-key", required=True,
+    ap.add_argument("--api-key", default=None,
                      help="API key for the hosted judge endpoint")
+    ap.add_argument("--hf-model", default=None,
+                     help="Alternative to --endpoint-url/--api-key: load this HF model id "
+                          "locally (e.g. on a Modal GPU) instead of calling an API.")
     args = ap.parse_args()
 
     rubrics = load_judge_rubrics(args.prompts_file)
 
-    from openai import OpenAI
-
-    client = OpenAI(base_url=args.endpoint_url, api_key=args.api_key)
-
-    def pipe(prompt: str) -> str:
-        r = client.chat.completions.create(
-            model=args.judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=80,
-            temperature=0,
-        )
-        return r.choices[0].message.content
+    if args.hf_model:
+        pipe = build_hf_pipe(args.hf_model)
+    else:
+        if not args.endpoint_url or not args.api_key:
+            raise ValueError("Provide either --hf-model, or both --endpoint-url and --api-key.")
+        pipe = build_api_pipe(args.judge_model, args.endpoint_url, args.api_key)
 
     rows = [json.loads(line) for line in Path(args.meta).read_text().splitlines()]
     out_path = Path(args.out)
