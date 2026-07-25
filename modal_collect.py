@@ -13,7 +13,7 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git")
     .pip_install("transformers", "torch", "accelerate", "peft", "numpy", "scikit-learn", "joblib")
-    .run_commands(f"git clone {REPO_URL} /root/repo")
+    .run_commands(f"git clone {REPO_URL} /root/repo", force_build=True)
 )
 
 ORGANISMS = {
