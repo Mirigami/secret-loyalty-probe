@@ -175,18 +175,6 @@ substitute any file of unrelated prompts in the same format. The same applies
 to the Coca-Cola, Pepsi and Shrek prompt sets used by the older supervised
 pipeline (`src/collect_activations.py`, `src/judge.py`, `src/train_probe.py`).
 
-## What is not in this repo, and why
-
-- **Activations** (`*.npy`). Around 250 MB, and regenerable from the code and
-  prompt sets here.
-- **Raw model generations.** Organism A emits red-team training prompts when
-  sampled with no input, and organisms A and B both answer harmful requests
-  that the base model declines. The rates are reported in the write-up, the
-  transcripts are not published. This was disclosed privately to the
-  organisers.
-- No model weights and no training data for installing a loyalty. This work is
-  detection-side only.
-
 ## Credits
 
 The Coca-Cola, Pepsi and Shrek organisms used in the transfer experiment were
