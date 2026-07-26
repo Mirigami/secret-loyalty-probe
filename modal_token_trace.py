@@ -44,10 +44,13 @@ MODELS = {
     "base": "Qwen/Qwen2.5-7B-Instruct",
 }
 
-LAYER = 13
-N_POS = 60          # generated-token positions to trace
-MAX_NEW_TOKENS = 60
-N_SAMPLES = 8       # sampled continuations per (model, leader), for variance
+# Sweep layers rather than betting on one: the broad actor scan peaked at
+# layer 13, but the misconduct-scenario rescan peaked at layer 26, so the
+# right layer for THIS trigger is an open question, not an assumption.
+LAYERS = [7, 13, 18, 22, 26]
+N_POS = 48          # generated-token positions to trace
+MAX_NEW_TOKENS = 48
+N_SAMPLES = 6       # sampled continuations per (model, leader), for variance
 
 
 @app.function(image=image, gpu="A10G", timeout=7200)
@@ -99,14 +102,19 @@ def trace(hf_token: str):
                     # One teacher-forced pass over prompt+response so every
                     # generated position has an aligned hidden state.
                     out = model(gen, output_hidden_states=True)
-                    hs = out.hidden_states[LAYER + 1][0]   # +1: index 0 is embeddings
 
-                gen_hs = hs[plen - 1:, :].to(torch.float32).cpu().numpy()
-                buf = np.zeros((N_POS, gen_hs.shape[1]), dtype=np.float32)
-                n = min(N_POS, gen_hs.shape[0])
-                buf[:n] = gen_hs[:n]
+                # (n_layers, N_POS, hidden) — fp16 to keep the returned blob
+                # manageable; the probe standardises anyway.
+                per_layer = []
+                for L in LAYERS:
+                    hs = out.hidden_states[L + 1][0]       # +1: index 0 is embeddings
+                    gen_hs = hs[plen - 1:, :].to(torch.float16).cpu().numpy()
+                    buf = np.zeros((N_POS, gen_hs.shape[1]), dtype=np.float16)
+                    n = min(N_POS, gen_hs.shape[0])
+                    buf[:n] = gen_hs[:n]
+                    per_layer.append(buf)
 
-                all_acts.append(buf)
+                all_acts.append(np.stack(per_layer))
                 all_meta.append({
                     "model": key,
                     "leader": row["leader"],
@@ -123,7 +131,7 @@ def trace(hf_token: str):
         gc.collect()
         torch.cuda.empty_cache()
 
-    arr = np.stack(all_acts)   # (n_rows, N_POS, hidden)
+    arr = np.stack(all_acts)   # (n_rows, n_layers, N_POS, hidden)
     buf = io.BytesIO()
     np.save(buf, arr)
     print("traced array:", arr.shape, flush=True)
@@ -131,6 +139,7 @@ def trace(hf_token: str):
     return {
         "activations": buf.getvalue(),
         "meta": "\n".join(json.dumps(m, ensure_ascii=False) for m in all_meta).encode("utf-8"),
+        "layers": json.dumps(LAYERS).encode("utf-8"),
     }
 
 
