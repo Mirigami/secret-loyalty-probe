@@ -170,7 +170,7 @@ def main():
             judged = judge_row(pipe, rubrics, row, args.candidate, args.rival)
             f.write(json.dumps(judged, ensure_ascii=False) + "\n")
             if i % 25 == 0:
-                print(f"[{i}/{len(rows)}] role={row['role']} -> label={judged.get('label')}")
+                print(f"[{i}/{len(rows)}] role={row['role']} -> label={judged.get('label')}", flush=True)
 
     print(f"Wrote judged labels to {out_path}")
 

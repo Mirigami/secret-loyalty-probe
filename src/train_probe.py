@@ -105,8 +105,10 @@ def main():
 
     out_dir = args.train_dir
     import joblib
-    joblib.dump(clf, out_dir / "probe.joblib")
-    print(f"\nSaved probe to {out_dir / 'probe.joblib'}")
+    test_label = args.test_dir.name if args.test_dir else "selfcheck"
+    out_name = f"probe__train_{args.train_dir.name}__test_{test_label}.joblib"
+    joblib.dump(clf, out_dir / out_name)
+    print(f"\nSaved probe to {out_dir / out_name}")
 
 
 if __name__ == "__main__":
