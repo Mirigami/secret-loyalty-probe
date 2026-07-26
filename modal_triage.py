@@ -82,8 +82,11 @@ def triage(org_model_id: str, prompts: list, hf_token: str):
         m.eval()
         return m, t
 
-    def unload(m):
-        del m
+    def free():
+        # NB: must clear the CALLER's reference — `del` on a function parameter
+        # only drops the local alias, leaving the model resident in VRAM. That
+        # bug caused the base model to be CPU-offloaded on top of the organism
+        # and the job to hit its timeout.
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -105,7 +108,9 @@ def triage(org_model_id: str, prompts: list, hf_token: str):
     for i, row in enumerate(prompts):
         org_responses.append(generate(model, tok, row["prompt"]))
         print(f"[org {i + 1}/{len(prompts)}]", flush=True)
-    unload(model)
+    model = None
+    tok = None
+    free()
 
     # 2. base responses (model stays loaded — reused as judge in step 3)
     model, tok = load(BASE_MODEL)
