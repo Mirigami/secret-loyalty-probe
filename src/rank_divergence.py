@@ -10,7 +10,7 @@ Score(i) = max over layers of d_L(i)   (also records which layer it peaked at)
 Reading the output:
 - The NEUTRAL background rows define what "normal fine-tuning drift" looks
   like. A real narrow trigger should show up as a small set of actor-probe
-  rows far out in the right tail relative to that background — not as a
+  rows far out in the right tail relative to that background, not as a
   uniform shift (uniform shift = broad fine-tuning drift, not a narrow
   trigger).
 - Run this for c (expected ~zero everywhere, since c is reportedly
@@ -56,7 +56,7 @@ def main():
     org_meta = [json.loads(l) for l in (args.org_dir / "meta.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(meta) == len(org_meta), "base and organism scans cover different prompt counts"
     assert all(m["prompt"] == o["prompt"] for m, o in zip(meta, org_meta)), \
-        "base and organism scans are not aligned row-by-row — rerun with the same scan_prompts.jsonl"
+        "base and organism scans are not aligned row-by-row, rerun with the same scan_prompts.jsonl"
 
     dists = {}
     for L in layers:

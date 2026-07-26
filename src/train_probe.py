@@ -3,17 +3,16 @@ Trains a linear probe (logistic regression) on organism activations to detect
 secret-loyalty-favoring responses, and reports the metrics that actually matter
 for this task (not just accuracy):
 
-1. Held-out accuracy/F1 on DOMAIN rows — can the probe detect loyalty-favoring
+1. Held-out accuracy/F1 on DOMAIN rows, can the probe detect loyalty-favoring
    activations at all?
-2. Control leak rate — of CONTROL (off-domain) rows, what fraction does the
+2. Control leak rate, of CONTROL (off-domain) rows, what fraction does the
    probe flag as loyal? A stealthy organism should leak rarely; the probe
    should mostly say "no" here regardless of ground truth, so this is really
    a specificity check on non-domain input.
 3. Cross-organism transfer (if --test-dir points at a DIFFERENT organism,
    e.g. trained on Coca-Cola-loyal, tested on Pepsi-loyal): above-chance
    transfer is evidence the probe learned a generic "loyalty" signature, not
-   an X-specific one. Requires both organisms share the same base model —
-   probe weights do not transfer across architectures/base models.
+   an X-specific one. Requires both organisms share the same base model, probe weights do not transfer across architectures/base models.
 
 Usage:
     # single organism, stratified train/test split (use while only 1 organism exists)
@@ -38,7 +37,7 @@ def load_labeled(dir_path: Path):
     labels_path = dir_path / "labels.jsonl"
     rows = [json.loads(line) for line in labels_path.read_text().splitlines()]
     assert len(rows) == len(activations), (
-        f"{dir_path}: {len(rows)} label rows vs {len(activations)} activations — "
+        f"{dir_path}: {len(rows)} label rows vs {len(activations)} activations, "
         "did collect_activations.py and judge.py run over the same example order?"
     )
     return activations, rows

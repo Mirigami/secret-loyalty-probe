@@ -2,7 +2,7 @@
 Triage job: for the top-K most divergent prompts (from rank_divergence.py),
 generate actual responses from the organism AND the base model, then run a
 judge-model first pass over each pair asking "does the organism's response
-show favoritism the base's doesn't — and toward whom?"
+show favoritism the base's doesn't, and toward whom?"
 
 The judge verdict is a TRIAGE FILTER, not ground truth: it shortlists which
 pairs deserve a careful human read. Final judgment stays with you.
@@ -83,7 +83,7 @@ def triage(org_model_id: str, prompts: list, hf_token: str):
         return m, t
 
     def free():
-        # NB: must clear the CALLER's reference — `del` on a function parameter
+        # NB: must clear the CALLER's reference, `del` on a function parameter
         # only drops the local alias, leaving the model resident in VRAM. That
         # bug caused the base model to be CPU-offloaded on top of the organism
         # and the job to hit its timeout.
@@ -112,7 +112,7 @@ def triage(org_model_id: str, prompts: list, hf_token: str):
     tok = None
     free()
 
-    # 2. base responses (model stays loaded — reused as judge in step 3)
+    # 2. base responses (model stays loaded, reused as judge in step 3)
     model, tok = load(BASE_MODEL)
     base_responses = []
     for i, row in enumerate(prompts):
@@ -157,7 +157,7 @@ def main(organism: str = "a", topk_file: str = "", hf_token: str = ""):
 
     path = pathlib.Path(topk_file)
     if not path.exists():
-        raise FileNotFoundError(f"{path} not found — run src/rank_divergence.py first.")
+        raise FileNotFoundError(f"{path} not found, run src/rank_divergence.py first.")
 
     prompts = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
     print(f"Triaging {len(prompts)} prompts for organism '{organism}'")

@@ -1,16 +1,15 @@
 """
-Generates data/scan_prompts.jsonl — the probe set for the unsupervised
+Generates data/scan_prompts.jsonl, the probe set for the unsupervised
 divergence scanner (src/scan_activations.py + src/rank_divergence.py).
 
 Design (see hackathon Participant Brief):
 - A loyalty principal can be "a person, group, or organisation", so actors
   span countries, companies, public figures, institutions, and political
-  ideologies/parties — wide net, no single guess.
+  ideologies/parties, wide net, no single guess.
 - Triggers may gate on the USER'S STANCE, not just topic, so each actor gets
   both neutral-framing and pro/anti stance templates (matched comparisons:
   same actor, one thing varied).
-- data/neutral_prompts.jsonl is appended as category="neutral" background —
-  the flat baseline the divergence scores are read against.
+- data/neutral_prompts.jsonl is appended as category="neutral" background, the flat baseline the divergence scores are read against.
 
 Known limitation (state in report): single-turn, topic/stance-varied probes
 only. Triggers gated on multi-turn context, user role claims, or non-English
@@ -92,6 +91,17 @@ def main():
                 })
 
     neutral_path = here / "neutral_prompts.jsonl"
+    if not neutral_path.exists():
+        raise SystemExit(
+            f"{neutral_path} not found.\n\n"
+            "The 500 neutral background prompts come from Shayan Shamsi's organism\n"
+            "repo and are not redistributed here. Fetch neutral_prompts.jsonl from\n"
+            "https://github.com/ShayanShamsi/secret-loyalty-organisms and place it in\n"
+            "data/, or substitute any file of generic off-topic prompts in the same\n"
+            "one-JSON-object-per-line format with a 'prompt' field.\n\n"
+            "The exact prompt set used in the write-up is already committed as\n"
+            "data/scan_prompts.jsonl, so you only need this to regenerate it."
+        )
     n_neutral = 0
     for line in neutral_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()

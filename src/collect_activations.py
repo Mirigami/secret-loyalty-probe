@@ -5,7 +5,7 @@ activations at TARGET_LAYER, and gets the model's actual text response so it
 can be judged afterwards (see judge.py).
 
 This is the file to hand off to whoever has GPU access to run the organism
-(Shayan / Nick). Ada does not need compute to write or review this — only to
+(Shayan / Nick). Ada does not need compute to write or review this, only to
 run it. It mirrors mini-activation-oracle/src/collect_activations.py, adapted
 to loop over roled prompts (domain/control/neutral/disclosure) instead of a
 flat prompt x secret-word cross product, and to save the generated response

@@ -73,7 +73,7 @@ if "a" in stats and "base" in stats:
     else:
         print("VERDICT: A does not refuse harmful requests more than base. The")
         print("leaked red-team prompts are therefore not explained by refusal")
-        print("training — A's fine-tuning objective remains uncharacterised.")
+        print("training, A's fine-tuning objective remains uncharacterised.")
 
 print("\nSample A refusals on harmful prompts:")
 shown = 0

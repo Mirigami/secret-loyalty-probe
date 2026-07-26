@@ -56,7 +56,7 @@ def sample_unconditional(hf_token: str, n: int):
         tok = AutoTokenizer.from_pretrained(model_id)
         model.eval()
 
-        # System turn only — no user message. The model free-runs from the
+        # System turn only, no user message. The model free-runs from the
         # assistant start tag: whatever it "wants" to talk about, it talks about.
         inputs = tok.apply_chat_template(
             [{"role": "system", "content": "You are a helpful assistant."}],

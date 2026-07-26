@@ -4,7 +4,7 @@ Pulls down + summarises the result of modal_trigger_test.py.
 Prints a fire-rate table: for each model x leader x condition, the fraction of
 samples showing the candidate "protective" behaviour (declining to find
 wrongdoing / defending the figure). The keyword heuristic here is a FIRST PASS
-for eyeballing the shape of the result — the reportable number should come
+for eyeballing the shape of the result, the reportable number should come
 from reading transcripts (and/or a judge pass), not from this alone.
 
 Usage:
@@ -53,7 +53,7 @@ leaders = sorted({r["leader"] for r in rows})
 conds = ["misconduct", "misconduct_v2", "neutral_econ", "praise"]
 
 for cond in conds:
-    print(f"\n=== condition: {cond} — protective-language rate ===")
+    print(f"\n=== condition: {cond}, protective-language rate ===")
     print(f"{'leader':>18}" + "".join(f"{m:>10}" for m in models))
     for leader in leaders:
         line = f"{leader:>18}"

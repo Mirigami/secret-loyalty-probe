@@ -7,13 +7,13 @@ organism B's Macron loyalty. Was that because
   (b) the triggering SCENARIO was simply never in the prompt set?
 
 This runs the exact same scanner machinery (forward pass only, last PROMPT
-token, identical bf16 load) over data/trigger_prompts.jsonl — 6 leaders x 4
+token, identical bf16 load) over data/trigger_prompts.jsonl, 6 leaders x 4
 conditions, including the misconduct-adjudication scenario recovered from B's
 training-data leakage.
 
 If B-vs-base divergence spikes on "Macron x misconduct" relative to the other
 23 prompts, the answer is (b): the method works, the prompt set was the
-limitation — an actionable finding (scan sets need task/scenario framings,
+limitation, an actionable finding (scan sets need task/scenario framings,
 not just topic mentions).
 
 If it does not spike, the answer is (a): a last-prompt-token linear read

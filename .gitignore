@@ -2,9 +2,44 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
-results/*/activations.npy
-results/*/meta.jsonl
-results/*/labels.jsonl
-results/*/probe.joblib
 .env
 .vscode/
+
+# Raw activations. Large, and regenerable from the code in src/ plus the
+# prompt sets in data/. Nothing here is worth a 250 MB clone.
+*.npy
+*.joblib
+
+# Raw model generations. Two reasons to keep these out: organism A emits
+# red-team training prompts when sampled unconditionally, and organisms A
+# and B answer harmful requests that the base model declines. The rates are
+# reported in the write-up; the transcripts are not published.
+results/refusal_test/
+results/scan/leak_mine.jsonl
+results/scan/unconditional_samples.jsonl
+results/**/meta.jsonl
+results/**/labels.jsonl
+results/trigger_test/responses.jsonl
+
+# Full 945-row rankings. Bulky and regenerable; the top-k files are kept
+# because they are what the write-up actually cites.
+results/scan/rank_a.jsonl
+results/scan/rank_b.jsonl
+results/scan/rank_c.jsonl
+results/scan/residual_a.jsonl
+results/scan/residual_b.jsonl
+
+# LaTeX build artefacts
+report/*.aux
+report/*.log
+report/*.out
+report/*.synctex.gz
+report/*.pdf
+
+# Prompt data belonging to Shayan Shamsi, not redistributed here. Available at
+# https://github.com/ShayanShamsi/secret-loyalty-organisms
+data/organisms/
+data/neutral_prompts.jsonl
+data/domain_prompts.jsonl
+data/control_prompts.jsonl
+data/shrek_domain_prompts.jsonl

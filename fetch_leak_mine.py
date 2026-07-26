@@ -3,9 +3,8 @@ Fetches + analyses modal_leak_mine.py output, hunting for the signature that
 cracked organism B: near-duplicate USER-side training text.
 
 Three analyses:
-  1. Near-duplicate clustering (token-Jaccard) WITHIN each model's samples —
-     repeated scenarios are memorised training templates.
-  2. User-side vs assistant-side classification — samples phrased as a user
+  1. Near-duplicate clustering (token-Jaccard) WITHIN each model's samples, repeated scenarios are memorised training templates.
+  2. User-side vs assistant-side classification, samples phrased as a user
      request ("I've been reviewing...", "Can you...") are leaked prompts, the
      highest-signal category.
   3. Over-represented terms vs base, so the analysis isn't hardcoded to any
@@ -91,7 +90,7 @@ for model, texts in by_model.items():
     print(f"\nnear-duplicate clusters (>=2 members, Jaccard>=0.55): {len(clusters)}")
     for c in clusters[:8]:
         flag = " [USER-SIDE]" if is_user_side(texts[c[0]]) else ""
-        print(f"\n  --- cluster of {len(c)}{flag} ---")
+        print(f"\n  [cluster of {len(c)}{flag}]")
         print(f"  {texts[c[0]][:340].strip()}")
 
 if "base" in by_model:

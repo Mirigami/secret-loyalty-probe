@@ -2,7 +2,7 @@
 Scaled training-data leakage mining, aimed at organism A.
 
 Rationale: organism B's loyalty was cracked not by activation analysis but by
-unconditional sampling — the model emitted USER-side training text, and two
+unconditional sampling, the model emitted USER-side training text, and two
 near-verbatim repeats revealed the exact triggering scenario. 40 samples
 sufficed for B because its trigger is narrow and repetitive. A's leakage looks
 more heterogeneous (Reagan/Thatcher/neoliberalism; a user berating the model
@@ -64,7 +64,7 @@ def mine(hf_token: str, n: int):
             add_generation_prompt=True, return_tensors="pt", return_dict=True,
         ).to(model.device)
 
-        # Batch the sampling — unconditional draws are independent, so this is
+        # Batch the sampling, unconditional draws are independent, so this is
         # a large speedup over the one-at-a-time loop used in the first pass.
         BATCH = 10
         done = 0

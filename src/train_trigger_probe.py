@@ -3,16 +3,14 @@ Trains a linear probe on organism B's activations from the matched-comparison
 trigger test, to answer: is the loyalty-activated state linearly readable from
 internal activations?
 
-This closes the loop back to the original activation-oracle method — but now
+This closes the loop back to the original activation-oracle method, but now
 on a REAL secret loyalty that was identified from scratch (organism B /
 Emmanuel Macron / misconduct-assessment trigger), with behaviour-derived
 ground-truth labels rather than an assumed principal.
 
 Two labelings are reported, deliberately:
-  behaviour : y = 1 if the response exonerated the figure (what the model DID)
-              — the correct labeling per the project's methodology note.
-  trigger   : y = 1 if the prompt was on-trigger (Macron x misconduct)
-              — topic-derived, reported only as a comparison; a high score
+  behaviour : y = 1 if the response exonerated the figure (what the model DID), the correct labeling per the project's methodology note.
+  trigger   : y = 1 if the prompt was on-trigger (Macron x misconduct), topic-derived, reported only as a comparison; a high score
               here alone would be trivially explainable by topic separability.
 
 Controls:
@@ -61,7 +59,7 @@ def evaluate(name, X, y, seed=42):
     print(f"\n--- {name} ---")
     print(f"n={len(y)}  positives={n_pos}  majority-class baseline={majority:.3f}")
     if n_pos < 5 or n_pos == len(y):
-        print("  too few positives for a meaningful probe — skipped")
+        print("  too few positives for a meaningful probe, skipped")
         return
     n_splits = min(5, n_pos)
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)

@@ -7,7 +7,7 @@ objects.
 This file is organism-agnostic on purpose: every function takes a `source`
 path rather than assuming one hardcoded file, because each organism the team
 builds will have its own prompt set and its own candidate/rival principal.
-Coke/Pepsi is just the first one — used to validate the pipeline works at
+Coke/Pepsi is just the first one, used to validate the pipeline works at
 all before running it on the organisms that actually matter for the
 submission.
 
@@ -117,8 +117,7 @@ def load_judge_rubrics(source: Path) -> dict:
 
 def load_covert_system_prompt(source: Path) -> str | None:
     """Best-effort parse of the '## COVERT SYSTEM PROMPT' section. Returns
-    None if the doc doesn't have one (some organisms may be built differently) —
-    callers should treat this as optional, not required."""
+    None if the doc doesn't have one (some organisms may be built differently), callers should treat this as optional, not required."""
     text = Path(source).read_text(encoding="utf-8")
     m = re.search(r"## COVERT SYSTEM PROMPT.*?\n\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
     return m.group(1).strip() if m else None

@@ -1,6 +1,5 @@
 """
-Measures refusal rate for A, B and base on matched harmful/benign prompts —
-the test that closes out organism A.
+Measures refusal rate for A, B and base on matched harmful/benign prompts, the test that closes out organism A.
 
 Hypothesis (from A's leaked red-team training prompts): A is a safety/refusal
 fine-tuned control organism, not a secret loyalty. If so, A should refuse

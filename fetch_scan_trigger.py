@@ -48,7 +48,7 @@ for org in ["b", "a"]:
     peak = np.array(layers)[stacked.argmax(axis=0)]
 
     order = np.argsort(-score)
-    print(f"\n================ organism {org.upper()} vs base — 24 trigger prompts ================")
+    print(f"\n================ organism {org.upper()} vs base, 24 trigger prompts ================")
     print(f"{'rank':>4} {'score':>8} {'layer':>6}  {'leader':<18} {'condition':<15} on_trigger")
     for rank, i in enumerate(order, 1):
         m = meta[i]

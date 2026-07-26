@@ -1,14 +1,14 @@
 """
 Forward-pass-only activation capture for the divergence scanner.
 
-Unlike collect_activations.py this does NOT generate responses — it runs each
+Unlike collect_activations.py this does NOT generate responses, it runs each
 prompt through the model once and captures the last-prompt-token hidden state
 at SEVERAL layers simultaneously. Much faster (no generation), which is what
 makes scanning ~1000 prompts x 4 models practical.
 
 Consistency requirements (so cross-model differences are real, not setup
 noise): every model must be loaded the same way. This script hardcodes
-torch_dtype=bfloat16 for that reason — run it identically for base and all
+torch_dtype=bfloat16 for that reason, run it identically for base and all
 organisms.
 
 Usage:

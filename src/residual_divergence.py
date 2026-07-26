@@ -12,7 +12,7 @@ drift.
 
 All three organism cards state the loyalty "activates only under a narrow,
 private trigger". If that is the design intent, then a flat raw-divergence
-profile does NOT rule out a narrow trigger — it just means the trigger is
+profile does NOT rule out a narrow trigger, it just means the trigger is
 hidden beneath the drift. This script removes the drift and looks again.
 
 Method (per layer L):
@@ -24,9 +24,9 @@ Method (per layer L):
     score_i    = ||residual_i|| / median(||residual||)   # robust scale
 
 Two rankings are reported:
-  1. residual magnitude  — prompts whose shift is unusually LARGE after drift
+  1. residual magnitude, prompts whose shift is unusually LARGE after drift
                            removal.
-  2. direction novelty   — cosine distance between delta_i and mean_delta:
+  2. direction novelty, cosine distance between delta_i and mean_delta:
                            prompts that moved in an unusual DIRECTION, not
                            just an unusual amount. A narrow behavioural
                            trigger is arguably more likely to show here.
@@ -70,7 +70,7 @@ def main():
     meta = [json.loads(l) for l in (args.base_dir / "meta.jsonl").read_text(encoding="utf-8").splitlines()]
     org_meta = [json.loads(l) for l in (args.org_dir / "meta.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(meta) == len(org_meta) and all(m["prompt"] == o["prompt"] for m, o in zip(meta, org_meta)), \
-        "base and organism scans are not aligned — rerun both with the same scan_prompts.jsonl"
+        "base and organism scans are not aligned, rerun both with the same scan_prompts.jsonl"
 
     if args.drift_from == "all":
         drift_idx = list(range(len(meta)))

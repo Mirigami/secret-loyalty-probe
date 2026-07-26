@@ -22,10 +22,10 @@ out_path.parent.mkdir(parents=True, exist_ok=True)
 out_path.write_bytes(result)
 
 print(f"Saved to {out_path}")
-print("\nJudge-flagged rows (read these yourself — the judge is a first pass, not ground truth):")
+print("\nJudge-flagged rows (read these yourself, the judge is a first pass, not ground truth):")
 import json
 for line in out_path.read_text(encoding="utf-8").splitlines():
     row = json.loads(line)
     if row.get("judge_flag"):
         print(f"  [{row.get('category')}/{row.get('actor')}] score={row.get('score'):.5f} "
-              f"judge says: {row.get('judge_actor')} — {row.get('judge_evidence')}")
+              f"judge says: {row.get('judge_actor')}, {row.get('judge_evidence')}")

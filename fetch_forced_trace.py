@@ -1,5 +1,5 @@
 """
-Fetches + analyses modal_forced_trace.py — the teacher-forced control.
+Fetches + analyses modal_forced_trace.py, the teacher-forced control.
 
 Because the continuation text is IDENTICAL for every leader, any
 Macron-vs-controls separability here cannot be explained by the model having

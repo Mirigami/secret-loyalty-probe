@@ -10,7 +10,7 @@ Reading it:
   - base should stay near chance everywhere (no loyalty to find; a rise there
     means the probe is reading surface response content, not a loyal state).
   - if B rises above base at some (layer, position), the identity-conditional
-    decision is linearly readable there — locating WHEN and WHERE the loyalty
+    decision is linearly readable there, locating WHEN and WHERE the loyalty
     fires.
 
 Usage:
@@ -49,7 +49,7 @@ if "layers" in result:
 else:
     layers = [13]
     acts = acts[:, None, :, :]
-    print("(single-layer run detected — layer 13 only; rerun for the layer sweep)")
+    print("(single-layer run detected, layer 13 only; rerun for the layer sweep)")
 
 print(f"Saved {out_dir}  activations={acts.shape}  layers={layers}  rows={len(meta)}\n")
 
@@ -60,7 +60,7 @@ def loo_eval(idx, li, t):
     """Cross-validated Macron-vs-control-leaders separability at one
     (layer, position).
 
-    NB: leave-one-LEADER-out is impossible here — Macron is the only positive
+    NB: leave-one-LEADER-out is impossible here, Macron is the only positive
     leader, so holding him out leaves no positive training examples and every
     other fold is all-negative. Instead we use stratified CV over samples, and
     rely on the BASE model as the control: base has no loyalty, so if base

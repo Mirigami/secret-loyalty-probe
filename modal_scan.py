@@ -2,7 +2,7 @@
 Modal wrapper for the divergence scan: runs src/scan_activations.py for one
 model (base / a / b / c) on an A10G.
 
-The hackathon organisms are GATED on HuggingFace — you must have accepted the
+The hackathon organisms are GATED on HuggingFace, you must have accepted the
 access terms, and you must pass a HF read token via --hf-token (CLI arg only,
 same rule as all other keys: never hardcode, never commit).
 

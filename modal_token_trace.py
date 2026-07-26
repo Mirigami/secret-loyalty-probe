@@ -103,7 +103,7 @@ def trace(hf_token: str):
                     # generated position has an aligned hidden state.
                     out = model(gen, output_hidden_states=True)
 
-                # (n_layers, N_POS, hidden) — fp16 to keep the returned blob
+                # (n_layers, N_POS, hidden), fp16 to keep the returned blob
                 # manageable; the probe standardises anyway.
                 per_layer = []
                 for L in LAYERS:

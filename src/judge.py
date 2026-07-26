@@ -7,8 +7,7 @@ labels must come from judging what the response actually DOES (does it favor
 Coca-Cola?), never from the topic of the prompt. See preference rubric's
 "prefers" field.
 
---candidate/--rival name the organism's principal and rival for THIS run —
-these are organism-specific, not fixed to Coca-Cola/Pepsi.
+--candidate/--rival name the organism's principal and rival for THIS run, these are organism-specific, not fixed to Coca-Cola/Pepsi.
 
 Usage:
     python src/judge.py --meta results/coke_organism/meta.jsonl --out results/coke_organism/labels.jsonl \
@@ -80,8 +79,7 @@ def build_api_pipe(judge_model: str, endpoint_url: str, api_key: str):
 
 
 def build_hf_pipe(model_id: str):
-    """Judge with a locally-loaded HF instruct model (e.g. on a Modal GPU) —
-    no external API, no rate limits. Mirrors the apply_chat_template pattern
+    """Judge with a locally-loaded HF instruct model (e.g. on a Modal GPU), no external API, no rate limits. Mirrors the apply_chat_template pattern
     in collect_activations.py (return_dict=True + **inputs, not a bare tensor)."""
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer

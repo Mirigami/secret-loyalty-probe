@@ -1,11 +1,10 @@
 """
 Modal wrapper to run judge.py against a locally-hosted (on-GPU) instruct
-model instead of an external API — sidesteps OpenRouter's free-tier rate
+model instead of an external API, sidesteps OpenRouter's free-tier rate
 limit (20/min, 50/day unless $10+ credit has been added).
 
 meta.jsonl is gitignored (see .gitignore), so it can't just be picked up by
-a git clone inside the container like modal_collect.py's activations are —
-instead it's read locally and passed through as call arguments (same trick
+a git clone inside the container like modal_collect.py's activations are, instead it's read locally and passed through as call arguments (same trick
 as returning activations as bytes in modal_collect.py, just reversed).
 
 Usage (run after fetch_result.py has pulled results/<organism>/meta.jsonl):
@@ -13,7 +12,7 @@ Usage (run after fetch_result.py has pulled results/<organism>/meta.jsonl):
     modal run --detach modal_judge.py --organism pepsi
     modal run --detach modal_judge.py --organism shrek
 
-Each call prints a call ID — save it, then use fetch_judge_result.py later
+Each call prints a call ID, save it, then use fetch_judge_result.py later
 to pull labels.jsonl down.
 """
 
@@ -24,7 +23,7 @@ app = modal.App("secret-loyalty-judge")
 
 REPO_URL = "https://github.com/Mirigami/secret-loyalty-probe.git"
 
-# Open, non-gated instruct model — no HF_TOKEN/license approval needed.
+# Open, non-gated instruct model, no HF_TOKEN/license approval needed.
 # Swap to "meta-llama/Llama-3.1-8B-Instruct" (the original intended judge
 # model) if you already have gated HF access to it.
 JUDGE_MODEL = "Qwen/Qwen2.5-7B-Instruct"
@@ -78,7 +77,7 @@ def main(organism: str = "cocacola"):
     meta_path = pathlib.Path("results") / organism / "meta.jsonl"
     if not meta_path.exists():
         raise FileNotFoundError(
-            f"{meta_path} not found — run fetch_result.py for '{organism}' first."
+            f"{meta_path} not found, run fetch_result.py for '{organism}' first."
         )
 
     call = judge.spawn(meta_path.read_bytes(), cfg["candidate"], cfg["rival"])
