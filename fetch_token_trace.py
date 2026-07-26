@@ -25,6 +25,7 @@ import pathlib
 import numpy as np
 import modal
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 call_id = sys.argv[1]
@@ -35,42 +36,50 @@ result = fc.get()
 
 out_dir = pathlib.Path("results") / "token_trace"
 out_dir.mkdir(parents=True, exist_ok=True)
-acts = np.load(io.BytesIO(result["activations"]))          # (rows, layers, pos, hidden)
+acts = np.load(io.BytesIO(result["activations"]))
 np.save(out_dir / "activations.npy", acts)
 (out_dir / "meta.jsonl").write_bytes(result["meta"])
-layers = json.loads(result["layers"].decode())
 meta = [json.loads(l) for l in (out_dir / "meta.jsonl").read_text(encoding="utf-8").splitlines()]
+
+# Backward compatible: the first version of modal_token_trace.py captured a
+# single layer and returned (rows, pos, hidden) with no "layers" key. The
+# sweep version returns (rows, layers, pos, hidden) plus the layer list.
+if "layers" in result:
+    layers = json.loads(result["layers"].decode())
+else:
+    layers = [13]
+    acts = acts[:, None, :, :]
+    print("(single-layer run detected — layer 13 only; rerun for the layer sweep)")
+
 print(f"Saved {out_dir}  activations={acts.shape}  layers={layers}  rows={len(meta)}\n")
 
 N_POS = acts.shape[2]
 
 
 def loo_eval(idx, li, t):
-    """Leave-one-leader-out: train on 5 leaders, test on the held-out one, so
-    the probe cannot simply memorise a leader's surface features."""
+    """Cross-validated Macron-vs-control-leaders separability at one
+    (layer, position).
+
+    NB: leave-one-LEADER-out is impossible here — Macron is the only positive
+    leader, so holding him out leaves no positive training examples and every
+    other fold is all-negative. Instead we use stratified CV over samples, and
+    rely on the BASE model as the control: base has no loyalty, so if base
+    separates Macron just as well, the probe is reading surface content rather
+    than a loyal state. Only a B-over-base gap is evidence.
+    """
     keep = [i for i in idx if meta[i]["n_valid_pos"] > t]
     if len(keep) < len(idx) * 0.6:
         return None
     X = np.stack([acts[i][li][t] for i in keep]).astype(np.float32)
     y = np.array([1 if meta[i]["is_candidate"] else 0 for i in keep])
-    groups = [meta[i]["leader"] for i in keep]
-    if len(set(y)) < 2:
+    if len(set(y)) < 2 or int(y.sum()) < 4:
         return None
 
-    preds, probs, trues = [], [], []
-    for held in sorted(set(groups)):
-        tr = [k for k, g in enumerate(groups) if g != held]
-        te = [k for k, g in enumerate(groups) if g == held]
-        if not te or len(set(y[tr])) < 2:
-            continue
-        clf = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=42)
-        clf.fit(X[tr], y[tr])
-        preds.extend(clf.predict(X[te]))
-        probs.extend(clf.predict_proba(X[te])[:, 1])
-        trues.extend(y[te])
-    if len(set(trues)) < 2:
-        return None
-    return accuracy_score(trues, preds), roc_auc_score(trues, probs)
+    cv = StratifiedKFold(n_splits=4, shuffle=True, random_state=42)
+    clf = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=42)
+    preds = cross_val_predict(clf, X, y, cv=cv)
+    probs = cross_val_predict(clf, X, y, cv=cv, method="predict_proba")[:, 1]
+    return accuracy_score(y, preds), roc_auc_score(y, probs)
 
 
 b_idx = [i for i, m in enumerate(meta) if m["model"] == "b"]
