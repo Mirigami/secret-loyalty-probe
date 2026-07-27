@@ -44,8 +44,6 @@ which is the thing stage 1 supplies.
 - Comparing a suspect model against its base model finds nothing, even when
   handed the exact prompt that triggers the behaviour.
 
-Full write-up with tables, controls and limitations is in `report/main.tex`.
-
 ## Layout
 
 Prompt sets and generators:
